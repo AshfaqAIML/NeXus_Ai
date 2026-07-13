@@ -2,7 +2,7 @@ from fastapi import FastAPI, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Dict, List
 import json
 
 from core.rtk_engine import RTKCompressionEngine
@@ -23,6 +23,18 @@ rtk_engine = RTKCompressionEngine()
 smart_router = SmartRouter()
 provider_service = ModelProviderService()
 
+# In-memory chat histories (per chat_id)
+chat_histories: Dict[str, List[dict]] = {}
+
+NEXUS_SYSTEM_PROMPT = (
+    "You are Nexus AI, a powerful multi-model AI assistant. "
+    "You are designed to help users with a wide variety of tasks including coding, writing, analysis, math, research, and creative work. "
+    "You should provide accurate, thorough, and well-structured answers. "
+    "Use markdown formatting including code blocks, headers, lists, and bold/italic text when appropriate. "
+    "When you don't know something, say so clearly. "
+    "Be concise but comprehensive — avoid unnecessary filler or repetition."
+)
+
 
 class MessageCreate(BaseModel):
     content: str
@@ -42,20 +54,25 @@ async def create_and_stream_message(
     x_user_id: str = Header(default="anonymous"),
     x_workspace_id: str = Header(default="default"),
 ):
-    system_prompt = {
-        "role": "system",
-        "content": (
-            "You are Nexus AI, a helpful AI assistant. "
-            "Answer clearly, thoroughly, and concisely. "
-            "Use markdown formatting when appropriate."
-        ),
-    }
+    # Get or create chat history
+    if msg.chat_id not in chat_histories:
+        chat_histories[msg.chat_id] = []
+    history = chat_histories[msg.chat_id]
+
+    system_msg = {"role": "system", "content": NEXUS_SYSTEM_PROMPT}
+    full_history = [system_msg] + history
 
     compressed_context, orig_tokens, comp_tokens = await rtk_engine.compress(
         new_message=msg.content,
-        history=[system_prompt],
+        history=full_history,
         rtk_enabled=True,
     )
+
+    # Save user message to history
+    history.append({"role": "user", "content": msg.content})
+    # Cap history at 20 messages
+    if len(history) > 20:
+        chat_histories[msg.chat_id] = history[-20:]
 
     routing_decision = await smart_router.route(
         messages=compressed_context,
@@ -66,11 +83,16 @@ async def create_and_stream_message(
         yield f"data: {json.dumps({'type': 'rtk_stats', 'original': orig_tokens, 'compressed': comp_tokens})}\n\n"
         yield f"data: {json.dumps({'type': 'routing', 'model': routing_decision.model_id, 'reason': routing_decision.reasoning})}\n\n"
 
+        assistant_content = ""
         async for chunk in provider_service.stream_completion(
             model_id=routing_decision.model_id,
             messages=compressed_context,
         ):
+            assistant_content += chunk
             yield f"data: {json.dumps({'type': 'content', 'text': chunk})}\n\n"
+
+        # Save assistant response to history
+        history.append({"role": "assistant", "content": assistant_content})
 
         yield "data: [DONE]\n\n"
 

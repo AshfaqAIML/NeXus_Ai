@@ -1,100 +1,144 @@
 import re
-import json
 from typing import List, Dict, Tuple, Optional
 import tiktoken
+
 
 class RTKCompressionEngine:
     def __init__(self):
         self.encoder = tiktoken.get_encoding("cl100k_base")
-        
-        # Regex patterns for terminal/log filtering
         self.ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
         self.log_timestamp = re.compile(r'\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z\b')
-        self.log_level_info = re.compile(r'\b(INFO|DEBUG|TRACE)\b', re.IGNORECASE)
+        self.log_level = re.compile(r'\b(INFO|DEBUG|TRACE|WARN|NOTICE)\b', re.IGNORECASE)
+
+        # Filler words and phrases that can be removed without changing meaning
+        self.filler_phrases = re.compile(
+            r'\b(please|kindly|could you|would you|I would like you to|I want you to|'
+            r'can you|I need you to|I was wondering if you could|would it be possible to|'
+            r'it would be great if you|I appreciate it if you|do me a favor and|'
+            r'if you don\'t mind|when you get a chance|at your earliest convenience|'
+            r'just|basically|actually|honestly|literally|really|very|quite|'
+            r'absolutely|definitely|certainly|of course|sure thing)\b',
+            re.IGNORECASE,
+        )
+
+        # Verbose → concise mappings for system prompts
+        self.verbose_replacements = [
+            (r'You are a helpful, harmless, and honest AI assistant\.', 'You are a helpful AI assistant.'),
+            (r'Please ensure that your responses are always accurate, comprehensive, and well-structured\.', 'Be accurate and thorough.'),
+            (r'When answering questions, please provide detailed explanations with relevant examples where appropriate\.', 'Give detailed answers with examples.'),
+            (r'I would like you to help me with the following task:', 'Task:'),
+            (r'Could you please help me understand', 'Explain'),
+            (r'Can you explain to me', 'Explain'),
+            (r'I would like to know more about', 'Tell me about'),
+            (r'What is the meaning of', 'Define'),
+            (r'In this task, you are required to', 'You must'),
+            (r'It is important to note that', 'Note:'),
+            (r'In order to', 'To'),
+            (r'Due to the fact that', 'Because'),
+            (r'At this point in time', 'Now'),
+            (r'In the event that', 'If'),
+            (r'For the purpose of', 'For'),
+            (r'In the near future', 'Soon'),
+            (r'On a daily basis', 'Daily'),
+            (r'In the vicinity of', 'Near'),
+        ]
 
     def _count_tokens(self, messages: List[Dict]) -> int:
         return sum(len(self.encoder.encode(str(m.get("content", "")))) for m in messages)
 
     async def compress(
-        self, 
-        new_message: str, 
-        history: List[Dict], 
+        self,
+        new_message: str,
+        history: List[Dict],
         rtk_enabled: bool = True,
-        attach_files: Optional[List[str]] = None
+        attach_files: Optional[List[str]] = None,
     ) -> Tuple[List[Dict], int, int]:
-        """
-        Returns: (compressed_messages, original_tokens, compressed_tokens)
-        """
-        # Build the raw context
         raw_context = history + [{"role": "user", "content": new_message}]
-        
+
         if not rtk_enabled:
             orig = self._count_tokens(raw_context)
             return raw_context, orig, orig
 
-        # --- RTK PIPELINE STARTS ---
         original_tokens = self._count_tokens(raw_context)
-        
-        # 1. Compress new message & files (Logs, Code, JSON)
+
+        # Step 1: Rewrite system prompts to be concise
+        compressed_history = self._rewrite_system_prompts(history)
+
+        # Step 2: Prune old history
+        compressed_history = self._prune_history(compressed_history)
+
+        # Step 3: Compress the new message (strip filler, code blocks, logs)
         compressed_new_msg = self._compress_text_payload(new_message)
-        
-        # 2. Prune & compress history
-        compressed_history = self._prune_history(history)
-        
-        # 3. Assemble final context
+        compressed_new_msg = self._strip_fillers(compressed_new_msg)
+
+        # Step 4: Compress any attached files
+        if attach_files:
+            for f in attach_files:
+                compressed_new_msg += f"\n\n[File: {f}]"
+
+        # Assemble
         final_context = compressed_history + [{"role": "user", "content": compressed_new_msg}]
-        
         compressed_tokens = self._count_tokens(final_context)
+
         return final_context, original_tokens, compressed_tokens
 
+    def _rewrite_system_prompts(self, history: List[Dict]) -> List[Dict]:
+        rewritten = []
+        for msg in history:
+            if msg.get("role") == "system":
+                content = msg.get("content", "")
+                for pattern, replacement in self.verbose_replacements:
+                    content = re.sub(pattern, replacement, content)
+                # Collapse multiple newlines
+                content = re.sub(r'\n{3,}', '\n\n', content)
+                rewritten.append({"role": "system", "content": content})
+            else:
+                rewritten.append(msg)
+        return rewritten
+
+    def _strip_fillers(self, text: str) -> str:
+        # Only strip fillers from longer messages (>50 chars) to avoid breaking short prompts
+        if len(text) < 50:
+            return text
+        cleaned = self.filler_phrases.sub('', text)
+        # Collapse multiple spaces
+        cleaned = re.sub(r'  +', ' ', cleaned)
+        # Clean up leading/trailing whitespace
+        cleaned = cleaned.strip()
+        return cleaned if cleaned else text
+
     def _compress_text_payload(self, text: str) -> str:
-        """Applies specific compression rules to code blocks and logs."""
-        
-        # Handle Markdown Code Blocks
         def compress_block(match):
             lang, code = match.group(1), match.group(2)
-            
-            # If it's a terminal log, strip ANSI and redundant timestamps
             if lang in ['bash', 'shell', 'sh', 'log', '']:
                 code = self.ansi_escape.sub('', code)
-                code = self.log_timestamp.sub('[TIMESTAMP]', code)
-                # Collapse repeated INFO/DEBUG lines
-                code = self.log_level_info.sub('', code)
+                code = self.log_timestamp.sub('[TS]', code)
+                code = self.log_level.sub('', code)
                 code = re.sub(r'\n\s*\n', '\n', code).strip()
-                
-            # If it's a massive JSON, summarize it (Mock logic for illustration)
             if lang in ['json', 'xml'] and len(code) > 2000:
-                return f"```{lang}\n[RTK: Large {lang} payload summarized. Showing structure only.]\n{code[:500]}...\n[...truncated {len(code)-1000} chars...]\n{code[-500:]}\n```"
-                
+                return f"```{lang}\n[RTK: Large {lang} payload summarized.]\n{code[:500]}...\n[...truncated {len(code) - 1000} chars...]\n{code[-500:]}\n```"
             return f"```{lang}\n{code}\n```"
 
-        # Find all markdown code blocks
         text = re.sub(r'```(\w+)?\n(.*?)\n```', compress_block, text, flags=re.DOTALL)
-        
-        # Collapse repeated empty lines globally
         text = re.sub(r'\n{3,}', '\n\n', text)
         return text
 
     def _prune_history(self, history: List[Dict]) -> List[Dict]:
-        """
-        Smart history pruning:
-        - Keeps the last 3 messages fully intact.
-        - Compresses older messages by removing tool outputs and code blocks.
-        """
         if len(history) <= 3:
             return history
-            
+
         pruned = []
         for i, msg in enumerate(history):
             if i >= len(history) - 3:
-                pruned.append(msg) # Keep recent context raw
+                pruned.append(msg)
             else:
                 content = msg.get("content", "")
-                # Strip out old code blocks and tool outputs to save tokens
-                content = re.sub(r'```[\s\S]*?\n```', '[Previous Code Block Omitted]', content)
+                # For old messages: summarize long content, strip code blocks
+                if len(content) > 500:
+                    content = content[:200] + f"\n[RTK: {len(content) - 400} chars summarized]\n" + content[-200:]
+                content = re.sub(r'```[\s\S]*?\n```', '[code]', content)
                 if "<tool_output>" in content:
-                    content = re.sub(r'<tool_output>[\s\S]*?</tool_output>', '[Previous Tool Output Omitted]', content)
-                
+                    content = re.sub(r'<tool_output>[\s\S]*?</tool_output>', '[tool output]', content)
                 pruned.append({"role": msg["role"], "content": content})
-                
+
         return pruned

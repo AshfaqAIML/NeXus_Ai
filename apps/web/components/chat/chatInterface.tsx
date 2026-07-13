@@ -5,6 +5,7 @@ import { useChatStore } from '@/store/chatStore';
 import { ChatMessage } from './ChatMessage';
 import { PromptInput } from './PromptInput';
 import { ModelSelector } from './ModelSelector';
+import { RtkDashboardWidget } from '../context/RtkDashboardWidget';
 
 interface ChatInterfaceProps {
   chatId: string;
@@ -172,6 +173,7 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
 
       <div className="border-t border-white/10 bg-[#1a1a2e] p-4">
         <div className="max-w-3xl mx-auto">
+          <RtkDashboardWidget />
           <ModelSelector />
           <PromptInput
             value={input}
