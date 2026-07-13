@@ -9,9 +9,11 @@ import { RtkDashboardWidget } from '../context/RtkDashboardWidget';
 
 interface ChatInterfaceProps {
   chatId: string;
+  botId?: string;
+  systemHint?: string;
 }
 
-export function ChatInterface({ chatId }: ChatInterfaceProps) {
+export function ChatInterface({ chatId, botId = 'nexus', systemHint = '' }: ChatInterfaceProps) {
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -41,8 +43,9 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           content: userInput,
-          chat_id: 'default',
+          chat_id: chatId,
           preferred_model: preferredModel === 'auto' ? null : preferredModel,
+          system_hint: systemHint || undefined,
         }),
       });
 
@@ -92,7 +95,7 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
     }
 
     setStreaming(false);
-  }, [setStreaming, updateRtkMetrics, appendToLastMessage, routerConfig, selectedModelId]);
+  }, [setStreaming, updateRtkMetrics, appendToLastMessage, routerConfig, selectedModelId, chatId, systemHint]);
 
   const handleSend = () => {
     if (!input.trim() || isStreaming) return;

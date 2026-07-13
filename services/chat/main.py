@@ -41,6 +41,7 @@ class MessageCreate(BaseModel):
     chat_id: str = "default"
     use_knowledge_base: bool = False
     preferred_model: Optional[str] = None
+    system_hint: Optional[str] = None
 
 
 @app.get("/health")
@@ -59,7 +60,11 @@ async def create_and_stream_message(
         chat_histories[msg.chat_id] = []
     history = chat_histories[msg.chat_id]
 
-    system_msg = {"role": "system", "content": NEXUS_SYSTEM_PROMPT}
+    system_content = NEXUS_SYSTEM_PROMPT
+    if msg.system_hint:
+        system_content = msg.system_hint + "\n\n" + system_content
+
+    system_msg = {"role": "system", "content": system_content}
     full_history = [system_msg] + history
 
     compressed_context, orig_tokens, comp_tokens = await rtk_engine.compress(

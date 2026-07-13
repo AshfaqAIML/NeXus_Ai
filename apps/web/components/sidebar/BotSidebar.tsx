@@ -2,28 +2,31 @@
 
 import { useState } from 'react';
 
-interface Bot {
+export interface Bot {
   id: string;
   name: string;
   icon: string;
   description: string;
   color: string;
+  preferredModel: string | null; // null = auto route
+  systemHint: string;
 }
 
-const bots: Bot[] = [
-  { id: 'nexus', name: 'Nexus AI', icon: '⚡', description: 'Multi-model smart router', color: 'from-violet-500 to-fuchsia-500' },
-  { id: 'coder', name: 'Nexus Coder', icon: '💻', description: 'Claude 3.5 Sonnet for code', color: 'from-purple-500 to-pink-500' },
-  { id: 'analyst', name: 'Nexus Analyst', icon: '📊', description: 'GPT-4o for reasoning', color: 'from-green-500 to-emerald-500' },
-  { id: 'creative', name: 'Nexus Creative', icon: '🎨', description: 'Claude 3 Opus for writing', color: 'from-orange-500 to-amber-500' },
-  { id: 'longctx', name: 'Nexus Long', icon: '📄', description: 'Gemini 1.5 Pro for long docs', color: 'from-red-500 to-rose-500' },
+export const bots: Bot[] = [
+  { id: 'nexus', name: 'Nexus AI', icon: '⚡', description: 'Multi-model smart router', color: 'from-violet-500 to-fuchsia-500', preferredModel: null, systemHint: '' },
+  { id: 'coder', name: 'Nexus Coder', icon: '💻', description: 'Best free model for code', color: 'from-purple-500 to-pink-500', preferredModel: 'openai/gpt-oss-120b:free', systemHint: 'You are Nexus Coder, an expert programming assistant. Focus on writing clean, efficient, well-documented code. Always include code examples when relevant.' },
+  { id: 'analyst', name: 'Nexus Analyst', icon: '📊', description: '120B model for reasoning', color: 'from-green-500 to-emerald-500', preferredModel: 'nvidia/nemotron-3-super-120b-a12b:free', systemHint: 'You are Nexus Analyst, an expert in data analysis, research, and logical reasoning. Provide structured analysis with clear evidence and step-by-step reasoning.' },
+  { id: 'creative', name: 'Nexus Creative', icon: '🎨', description: 'For writing and creative work', color: 'from-orange-500 to-amber-500', preferredModel: 'google/gemma-4-31b-it:free', systemHint: 'You are Nexus Creative, a talented writing assistant. Help with essays, stories, emails, marketing copy, and creative content. Be expressive and engaging.' },
+  { id: 'longctx', name: 'Nexus Long', icon: '📄', description: 'Handles long documents', color: 'from-red-500 to-rose-500', preferredModel: 'nvidia/nemotron-3-super-120b-a12b:free', systemHint: 'You are Nexus Long, specialized in analyzing long documents, research papers, and extensive text. Provide thorough, well-organized summaries and analysis.' },
 ];
 
 interface BotSidebarProps {
   activeBot: string;
   onSelectBot: (id: string) => void;
+  onNewChat: () => void;
 }
 
-export function BotSidebar({ activeBot, onSelectBot }: BotSidebarProps) {
+export function BotSidebar({ activeBot, onSelectBot, onNewChat }: BotSidebarProps) {
   const [searchQuery, setSearchQuery] = useState('');
 
   const filteredBots = bots.filter((b) =>
@@ -47,7 +50,10 @@ export function BotSidebar({ activeBot, onSelectBot }: BotSidebarProps) {
         </div>
 
         {/* New Chat */}
-        <button className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-sm text-white font-medium transition-colors">
+        <button
+          onClick={onNewChat}
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 text-sm text-white font-medium transition-colors"
+        >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
@@ -91,22 +97,6 @@ export function BotSidebar({ activeBot, onSelectBot }: BotSidebarProps) {
               <div className="text-sm font-medium truncate">{bot.name}</div>
               <div className="text-[11px] text-gray-500 truncate">{bot.description}</div>
             </div>
-          </button>
-        ))}
-      </div>
-
-      {/* History */}
-      <div className="border-t border-white/5 px-2 py-2">
-        <div className="px-3 py-2 text-[10px] uppercase tracking-wider text-gray-500 font-medium">Recent</div>
-        {['Python web scraper help', 'Data analysis request', 'Creative writing'].map((title, i) => (
-          <button
-            key={i}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm text-gray-400 hover:bg-white/5 hover:text-white transition-colors truncate"
-          >
-            <svg className="w-3.5 h-3.5 flex-shrink-0 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
-            </svg>
-            <span className="truncate">{title}</span>
           </button>
         ))}
       </div>

@@ -17,6 +17,7 @@ interface ChatState {
   sidebarOpen: boolean;
 
   addMessage: (message: Message) => void;
+  clearMessages: () => void;
   appendToLastMessage: (chunk: string) => void;
   updateRtkMetrics: (original: number, compressed: number) => void;
   setStreaming: (isStreaming: boolean) => void;
@@ -45,6 +46,9 @@ export const useChatStore = create<ChatState>((set) => ({
 
   addMessage: (message) =>
     set((state) => ({ messages: [...state.messages, message] })),
+
+  clearMessages: () =>
+    set({ messages: [], totalOriginalTokens: 0, totalCompressedTokens: 0 }),
 
   appendToLastMessage: (chunk) =>
     set((state) => {

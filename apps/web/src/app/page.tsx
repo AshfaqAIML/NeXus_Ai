@@ -9,7 +9,7 @@ import { ModelManager } from '@/components/models/ModelManager';
 import { ApiKeyManager } from '@/components/models/ApiKeyManager';
 import { LocalModelHub } from '@/components/models/LocalModelHub';
 import { BenchmarkDashboard } from '@/components/models/BenchmarkDashboard';
-import { BotSidebar } from '@/components/sidebar/BotSidebar';
+import { BotSidebar, bots } from '@/components/sidebar/BotSidebar';
 
 const navItems: { id: ActivePage; label: string; icon: string }[] = [
   { id: 'chat', label: 'Chat', icon: '💬' },
@@ -20,13 +20,34 @@ const navItems: { id: ActivePage; label: string; icon: string }[] = [
 ];
 
 export default function Home() {
-  const [chatId] = useState(() => crypto.randomUUID());
+  const [chatId, setChatId] = useState(() => crypto.randomUUID());
   const activePage = useChatStore((s) => s.activePage);
   const setActivePage = useChatStore((s) => s.setActivePage);
   const activeBot = useChatStore((s) => s.activeBot);
   const setActiveBot = useChatStore((s) => s.setActiveBot);
+  const selectedModelId = useChatStore((s) => s.selectedModelId);
+  const setSelectedModelId = useChatStore((s) => s.setSelectedModelId);
   const sidebarOpen = useChatStore((s) => s.sidebarOpen);
   const setSidebarOpen = useChatStore((s) => s.setSidebarOpen);
+  const clearMessages = useChatStore((s) => s.clearMessages);
+
+  const handleSelectBot = (id: string) => {
+    setActiveBot(id);
+    setActivePage('chat');
+    clearMessages();
+    setChatId(crypto.randomUUID());
+    const bot = bots.find((b) => b.id === id);
+    if (bot?.preferredModel) {
+      setSelectedModelId(bot.preferredModel);
+    }
+  };
+
+  const handleNewChat = () => {
+    clearMessages();
+    setChatId(crypto.randomUUID());
+  };
+
+  const currentBot = bots.find((b) => b.id === activeBot);
 
   const renderPage = () => {
     switch (activePage) {
@@ -37,7 +58,11 @@ export default function Home() {
       default: return (
         <div className="flex-1 flex flex-col overflow-hidden relative">
           <div className="flex-1 overflow-hidden">
-            <ChatInterface chatId={chatId} />
+            <ChatInterface
+              chatId={chatId}
+              botId={activeBot}
+              systemHint={currentBot?.systemHint || ''}
+            />
           </div>
           <RTKDashboardWidget />
         </div>
@@ -49,7 +74,7 @@ export default function Home() {
     <div className="flex h-screen w-screen overflow-hidden bg-[#0f0f23]">
       {/* Bot Sidebar */}
       {sidebarOpen && (
-        <BotSidebar activeBot={activeBot} onSelectBot={(id) => { setActiveBot(id); setActivePage('chat'); }} />
+        <BotSidebar activeBot={activeBot} onSelectBot={handleSelectBot} onNewChat={handleNewChat} />
       )}
 
       {/* Main Area */}
@@ -66,8 +91,24 @@ export default function Home() {
               </svg>
             </button>
 
+            {/* Active Bot Indicator */}
+            {currentBot && (
+              <div className="flex items-center gap-2">
+                <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${currentBot.color} flex items-center justify-center text-sm`}>
+                  {currentBot.icon}
+                </div>
+                <span className="text-sm font-semibold text-white">{currentBot.name}</span>
+                <span className="text-xs text-gray-500 hidden sm:inline">— {currentBot.description}</span>
+              </div>
+            )}
+            {!currentBot && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-white">Nexus AI</span>
+              </div>
+            )}
+
             {/* Page Navigation */}
-            <nav className="flex items-center gap-1">
+            <nav className="flex items-center gap-1 ml-4">
               {navItems.map((item) => (
                 <button
                   key={item.id}
