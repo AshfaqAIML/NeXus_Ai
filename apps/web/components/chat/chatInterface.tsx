@@ -154,7 +154,12 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
             </div>
           ) : (
             messages.map((msg) => (
-              <ChatMessage key={msg.id} role={msg.role} content={msg.content} />
+              <ChatMessage
+                key={msg.id}
+                role={msg.role}
+                content={msg.content}
+                onEdit={msg.role === 'assistant' ? (content) => setInput(content) : undefined}
+              />
             ))
           )}
 
