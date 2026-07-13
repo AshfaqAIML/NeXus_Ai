@@ -1,0 +1,11 @@
+{
+  "document_id": "uuid", // Links back to PostgreSQL Document table
+  "workspace_id": "uuid",
+  "chunk_text": "The RTK engine reduces tokens by stripping redundant...",
+  "chunk_index": 4,
+  "source_type": "pdf", // pdf, web, git, docx
+  "metadata": {
+     "page_number": 12,
+     "file_name": "architecture.pdf"
+  }
+}

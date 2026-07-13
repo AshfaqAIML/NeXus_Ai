@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat-service
+  namespace: nexus-prod
+  labels:
+    app: chat-service
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: chat-service
+  template:
+    metadata:
+      labels:
+        app: chat-service
+    spec:
+      containers:
+      - name: chat-service
+        image: ghcr.io/nexus-ai/nexus-chat:latest # Updated by CI/CD
+        ports:
+        - containerPort: 8002
+        envFrom:
+        - configMapRef:
+            name: nexus-config
+        - secretRef:
+            name: nexus-secrets
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "1Gi"
+          limits:
+            cpu: "1000m"
+            memory: "2Gi"
+        # Readiness probe: Can the pod serve traffic?
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8002
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        # Liveness probe: Should the pod be restarted?
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8002
+          initialDelaySeconds: 30
+          periodSeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chat-service
+  namespace: nexus-prod
+spec:
+  selector:
+    app: chat-service
+  ports:
+    - protocol: TCP
+      port: 8002
+      targetPort: 8002

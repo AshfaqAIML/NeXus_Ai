@@ -1,0 +1,9 @@
+{
+  "user_id": "uuid",
+  "workspace_id": "uuid",
+  "agent_id": "uuid (optional)",
+  "memory_text": "User prefers code in TypeScript and uses Tailwind CSS.",
+  "importance_score": 0.85,
+  "created_at": "timestamp",
+  "decay_date": "timestamp" // Calculated based on Agent.memory_decay_hours
+}

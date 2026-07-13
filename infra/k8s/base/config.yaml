@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nexus-config
+  namespace: nexus-prod
+data:
+  AUTH_SERVICE_URL: "http://auth-service:8001"
+  CHAT_SERVICE_URL: "http://chat-service:8002"
+  KNOWLEDGE_SERVICE_URL: "http://knowledge-service:8003"
+  MEMORY_SERVICE_URL: "http://memory-service:8004"
+  QDRANT_URL: "http://qdrant:6333"
+  REDIS_URL: "redis://redis-master:6379/0"

@@ -1,0 +1,13 @@
+node_modules/
+.next/
+dist/
+.turbo/
+__pycache__/
+*.py[cod]
+.env
+.env.local
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
