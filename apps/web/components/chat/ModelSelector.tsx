@@ -4,12 +4,11 @@ import { useState, useRef, useEffect } from 'react';
 import { useChatStore } from '@/store/chatStore';
 
 const models = [
-  { id: 'auto', name: 'Auto Route', icon: '⚡', desc: 'Smart routing to best model', color: 'text-violet-400' },
-  { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet', icon: '🟣', desc: 'Best for coding & analysis', color: 'text-purple-400' },
-  { id: 'openai/gpt-4o', name: 'GPT-4o', icon: '🟢', desc: 'Strong reasoning & math', color: 'text-green-400' },
-  { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini', icon: '🔵', desc: 'Fast & cost-effective', color: 'text-blue-400' },
-  { id: 'anthropic/claude-3-opus', name: 'Claude 3 Opus', icon: '🟣', desc: 'Best for creative writing', color: 'text-purple-300' },
-  { id: 'gemini/gemini-1.5-pro', name: 'Gemini 1.5 Pro', icon: '🔴', desc: 'Long context (120k+)', color: 'text-red-400' },
+  { id: 'auto', name: 'Auto Route', icon: '⚡', desc: 'Smart routing to best free model' },
+  { id: 'google/gemma-4-31b-it:free', name: 'Gemma 4 31B', icon: '🟢', desc: 'Google\'s latest (free)' },
+  { id: 'nvidia/nemotron-3-super-120b-a12b:free', name: 'Nemotron 3 Super 120B', icon: '🟢', desc: 'NVIDIA\'s largest (free)' },
+  { id: 'openai/gpt-oss-120b:free', name: 'GPT-OSS 120B', icon: '🟢', desc: 'OpenAI open-source (free)' },
+  { id: 'qwen/qwen3-next-80b-a3b-instruct:free', name: 'Qwen3 Next 80B', icon: '🟢', desc: 'Alibaba reasoning (free)' },
 ];
 
 export function ModelSelector() {
@@ -17,6 +16,7 @@ export function ModelSelector() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const routerConfig = useChatStore((s) => s.routerConfig);
   const setRouterConfig = useChatStore((s) => s.setRouterConfig);
+  const setSelectedModel = useChatStore((s) => s.setSelectedModel);
 
   const selectedModel = models.find((m) =>
     routerConfig.preferredModel ? m.id === routerConfig.preferredModel : m.id === 'auto'
@@ -48,7 +48,7 @@ export function ModelSelector() {
       {isOpen && (
         <div className="absolute bottom-full left-0 mb-2 w-72 bg-[#252540] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50">
           <div className="p-2 border-b border-white/10">
-            <div className="text-[10px] uppercase tracking-wider text-gray-500 px-2 py-1">Select Model</div>
+            <div className="text-[10px] uppercase tracking-wider text-gray-500 px-2 py-1">Free Models (OpenRouter)</div>
           </div>
           <div className="p-1 max-h-64 overflow-y-auto">
             {models.map((model) => (
@@ -59,6 +59,7 @@ export function ModelSelector() {
                     autoRoute: model.id === 'auto',
                     preferredModel: model.id === 'auto' ? null : model.id,
                   });
+                  setSelectedModel(model.id === 'auto' ? null : model.id);
                   setIsOpen(false);
                 }}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors ${
