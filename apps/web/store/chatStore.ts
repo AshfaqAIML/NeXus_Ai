@@ -15,6 +15,7 @@ interface ChatState {
   activeBot: string;
   selectedModelId: string | null;
   sidebarOpen: boolean;
+  rtkEnabled: boolean;
 
   addMessage: (message: Message) => void;
   clearMessages: () => void;
@@ -27,6 +28,7 @@ interface ChatState {
   setActiveBot: (id: string) => void;
   setSelectedModel: (id: string | null) => void;
   setSidebarOpen: (open: boolean) => void;
+  toggleRtk: () => void;
 }
 
 export const useChatStore = create<ChatState>((set) => ({
@@ -43,6 +45,7 @@ export const useChatStore = create<ChatState>((set) => ({
   activeBot: 'nexus',
   selectedModelId: null,
   sidebarOpen: true,
+  rtkEnabled: true,
 
   addMessage: (message) =>
     set((state) => ({ messages: [...state.messages, message] })),
@@ -75,4 +78,5 @@ export const useChatStore = create<ChatState>((set) => ({
   setActiveBot: (activeBot) => set({ activeBot }),
   setSelectedModel: (selectedModelId) => set({ selectedModelId }),
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
+  toggleRtk: () => set((state) => ({ rtkEnabled: !state.rtkEnabled })),
 }));

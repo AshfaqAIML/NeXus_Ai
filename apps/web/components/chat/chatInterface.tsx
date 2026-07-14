@@ -6,6 +6,7 @@ import { ChatMessage } from './ChatMessage';
 import { PromptInput } from './PromptInput';
 import { ModelSelector } from './ModelSelector';
 import { RtkDashboardWidget } from '../context/RtkDashboardWidget';
+import { RtkToggle } from './RtkToggle';
 
 interface ChatInterfaceProps {
   chatId: string;
@@ -25,6 +26,7 @@ export function ChatInterface({ chatId, botId = 'nexus', systemHint = '' }: Chat
   const updateRtkMetrics = useChatStore((s) => s.updateRtkMetrics);
   const routerConfig = useChatStore((s) => s.routerConfig);
   const selectedModelId = useChatStore((s) => s.selectedModelId);
+  const rtkEnabled = useChatStore((s) => s.rtkEnabled);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -46,6 +48,7 @@ export function ChatInterface({ chatId, botId = 'nexus', systemHint = '' }: Chat
           chat_id: chatId,
           preferred_model: preferredModel === 'auto' ? null : preferredModel,
           system_hint: systemHint || undefined,
+          rtk_enabled: rtkEnabled,
         }),
       });
 
@@ -95,7 +98,7 @@ export function ChatInterface({ chatId, botId = 'nexus', systemHint = '' }: Chat
     }
 
     setStreaming(false);
-  }, [setStreaming, updateRtkMetrics, appendToLastMessage, routerConfig, selectedModelId, chatId, systemHint]);
+  }, [setStreaming, updateRtkMetrics, appendToLastMessage, routerConfig, selectedModelId, chatId, systemHint, rtkEnabled]);
 
   const handleSend = () => {
     if (!input.trim() || isStreaming) return;
@@ -173,7 +176,7 @@ export function ChatInterface({ chatId, botId = 'nexus', systemHint = '' }: Chat
                 <span className="w-2 h-2 bg-violet-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
                 <span className="w-2 h-2 bg-violet-400 rounded-full animate-bounce" />
               </div>
-              Nexus AI is thinking...
+              {systemHint ? 'AI is thinking...' : 'Nexus AI is thinking...'}
             </div>
           )}
         </div>
@@ -182,13 +185,16 @@ export function ChatInterface({ chatId, botId = 'nexus', systemHint = '' }: Chat
       <div className="border-t border-white/10 bg-[#1a1a2e] p-4">
         <div className="max-w-3xl mx-auto">
           <RtkDashboardWidget />
-          <ModelSelector />
+          <div className="flex items-center justify-between py-2">
+            <RtkToggle />
+            <ModelSelector />
+          </div>
           <PromptInput
             value={input}
             onChange={setInput}
             onSend={handleSend}
             disabled={isStreaming}
-            placeholder={isStreaming ? 'Nexus is generating...' : 'Message Nexus AI...'}
+            placeholder={isStreaming ? 'Generating...' : systemHint ? 'Message this bot...' : 'Message Nexus AI...'}
           />
         </div>
       </div>

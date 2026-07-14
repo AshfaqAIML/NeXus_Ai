@@ -42,6 +42,7 @@ class MessageCreate(BaseModel):
     use_knowledge_base: bool = False
     preferred_model: Optional[str] = None
     system_hint: Optional[str] = None
+    rtk_enabled: bool = True
 
 
 @app.get("/health")
@@ -70,7 +71,7 @@ async def create_and_stream_message(
     compressed_context, orig_tokens, comp_tokens = await rtk_engine.compress(
         new_message=msg.content,
         history=full_history,
-        rtk_enabled=True,
+        rtk_enabled=msg.rtk_enabled,
     )
 
     # Save user message to history
