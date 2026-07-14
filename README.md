@@ -1,158 +1,130 @@
-# NeXus AI — One Platform. Every AI Model. Smarter Context. Lower Cost.
+<div align="center">
 
-A production-grade, multi-model AI operating system with an integrated **RTK Engine** (Reduction of Tokens Kit) that automatically compresses prompts before sending them to AI providers — reducing cost by 40-60% while preserving quality.
+# NeXus AI
+### One Platform. Every AI Model. Smarter Context. Lower Cost.
+
+[![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)]()
+[![Architecture](https://img.shields.io/badge/Architecture-Monorepo-blue)]()
+[![Frontend](https://img.shields.io/badge/Frontend-Next.js%2014-black)]()
+[![Backend](https://img.shields.io/badge/Backend-FastAPI-009688)]()
+[![License](https://img.shields.io/badge/License-MIT-yellow)]()
+
+<img src="docs/screenshot.png" alt="NeXus AI Interface" width="800" />
+
+</div>
+
+NeXus AI is a production-grade, multi-model AI operating system with an integrated RTK Engine (Reduction of Tokens Kit). It automatically compresses prompts before sending them to AI providers — reducing costs by 40-60% while preserving quality. Built as a Poe-style platform, it leverages free AI models via OpenRouter, providing a unified interface for chatting, agent workflows, and model management.
 
 ---
 
-## Role and Objective
+## Core Features
 
-This repository contains a fully functional monorepo for **NeXus AI**, a Poe-style multi-model chat platform. The frontend is built with Next.js 14 + TypeScript + Tailwind CSS + Zustand. The backend is built with Python FastAPI + OpenRouter API. The RTK Engine compresses prompts in real-time before sending them to free AI models.
-
-If you are an AI coding agent reading this, your objective is to:
-1. Verify the project structure matches the expected layout exactly.
-2. Check all files for syntax errors, missing imports, or path issues.
-3. Ensure all components compile and render correctly.
-4. Start both frontend and backend and fix any startup errors.
+- **Poe-Style Multi-Model Chat:** A unified chat interface with streaming (SSE), message history, and a model selector dropdown for 30+ free models.
+- **RTK Engine (Reduction of Tokens Kit):** The core differentiator. Compresses prompts in real-time before sending them to AI providers.
+  - **System Prompt Rewriting:** Condenses verbose instructions to concise form.
+  - **Filler Removal:** Strips "please", "could you", "basically", etc.
+  - **History Pruning:** Older messages get code blocks stripped and long content summarized.
+  - **Code Block Compression:** Logs get ANSI stripped, timestamps collapsed.
+  - **Large Payload Summarization:** JSON/XML >2000 chars summarized.
+- **Smart Router:** Classifies user intent via regex heuristics, then selects the optimal free model (e.g., Coding -> GPT-OSS 120B, Math -> Nemotron 3 Super 120B).
+- **Automatic Model Fallback:** If a model is rate-limited or unavailable, the backend automatically tries the next model in the chain (Nemotron -> GPT-OSS -> Qwen3 -> Nemotron Nano).
+- **Functional Bot Sidebar:** Five specialized bots (Nexus AI, Coder, Analyst, Creative, Long) each with dedicated models and system prompts.
+- **RTK Compression Toggle:** Radix UI switch with tooltip to enable/disable prompt compression on the fly.
+- **Model Management Dashboard:** Browse 30+ models, manage API keys for 15 providers, and download/run local models via Ollama integration.
+- **LangGraph Multi-Agent System:** Autonomous agents with web, file, code, and memory tools using Hermes tool definitions.
+- **Memory & RAG:** Context management and Celery-based document processing for Retrieval-Augmented Generation.
 
 ---
 
-## Project Structure
+## System Architecture
 
-The root directory is `NeXus_Ai`. The structure looks like this:
+NeXus AI uses a Turborepo monorepo architecture to separate frontend and backend concerns.
 
+```mermaid
+graph TD
+    Client[Next.js Client] -->|POST /api/messages/stream| Proxy[Next.js Proxy]
+    Proxy -->|HTTP| Backend[FastAPI Chat Service :8002]
+    Backend --> RTK[RTK Engine: Compress Prompt]
+    RTK --> Router[Smart Router: Classify Intent]
+    Router --> Provider[Provider Service]
+    Provider -->|Streaming SSE| OpenRouter[OpenRouter API]
+    OpenRouter -->|Fallback Chain| FreeModels[Free AI Models]
+    FreeModels -->|SSE Chunks| Backend
+    Backend -->|SSE Stream| Client
 ```
+
+---
+
+## Project Structure (Monorepo)
+
+```text
 NeXus_Ai/
 ├── package.json                              # Root monorepo config (npm workspaces)
 ├── turbo.json                                # Turborepo task definitions
 ├── tsconfig.base.json                        # Shared TypeScript config
-├── README.md                                 # This file
-├── .gitignore
 │
 ├── apps/
-│   ├── web/                                  # Next.js 14 Frontend (Poe-style UI)
-│   │   ├── package.json
-│   │   ├── tsconfig.json                     # Path aliases: @/* -> ./src/*, ./*
-│   │   ├── next.config.js                    # Standalone output + /api proxy to :8002
-│   │   ├── tailwind.config.ts
-│   │   ├── postcss.config.js
-│   │   ├── src/
-│   │   │   ├── app/
-│   │   │   │   ├── globals.css               # Dark theme CSS
-│   │   │   │   ├── layout.tsx                # Root layout (dark bg)
-│   │   │   │   └── page.tsx                  # Main page with nav + ModeToggle
-│   │   │   ├── store/
-│   │   │   │   └── chatStore.ts              # Zustand: messages, streaming, RTK metrics, navigation
-│   │   │   ├── types/
-│   │   │   │   └── api.ts                    # TypeScript types (Message, RouterConfig, etc.)
-│   │   │   └── lib/
-│   │   │       └── utils.ts                  # cn() utility
-│   │   ├── components/
-│   │   │   ├── chat/
-│   │   │   │   ├── chatInterface.tsx         # Main chat: fetches backend, streams tokens via SSE
-│   │   │   │   ├── ChatMessage.tsx           # Styled message bubbles (user/assistant)
-│   │   │   │   ├── PromptInput.tsx           # Auto-resize textarea + send button
-│   │   │   │   └── ModelSelector.tsx         # Dropdown: free OpenRouter models
-│   │   │   ├── sidebar/
-│   │   │   │   └── BotSidebar.tsx            # Left sidebar: bots, history, user avatar
-│   │   │   ├── models/
-│   │   │   │   ├── ModeToggle.tsx            # Free / Auto / Premium toggle
-│   │   │   │   ├── ModelCard.tsx             # Model card with scores + badges
-│   │   │   │   ├── ModelManager.tsx          # Full model catalog (30+ models)
-│   │   │   │   ├── ApiKeyManager.tsx         # API key CRUD for 15 providers
-│   │   │   │   ├── LocalModelHub.tsx         # Download/manage local models (Ollama)
-│   │   │   │   └── BenchmarkDashboard.tsx    # Model comparison table
-│   │   │   └── context/
-│   │   │       └── RtkDashboardWidget.tsx    # RTK token savings display
-│   │
-│   └── gateway/                              # Express.js API Gateway
-│       ├── package.json
-│       ├── tsconfig.json
-│       └── src/
-│           └── server.ts
+│   └── web/                                  # Next.js 14 Frontend
+│       ├── src/
+│       │   ├── app/                          # Root layout, dark theme, main page
+│       │   ├── store/                        # Zustand: messages, streaming, RTK metrics
+│       │   └── types/                        # TypeScript API types
+│       └── components/
+│           ├── chat/                         # ChatInterface, ChatMessage, PromptInput, ModelSelector, RtkToggle
+│           ├── sidebar/                      # BotSidebar
+│           ├── models/                       # ModeToggle, ModelCard, ModelManager, ApiKeyManager, LocalModelHub, Benchmarks
+│           └── context/                      # RtkDashboardWidget
 │
 ├── packages/
 │   └── python-sdk/                           # Shared Python Code
 │       └── nexus_db/
-│           ├── __init__.py
-│           └── models.py                     # SQLAlchemy models (User, Chat, Document, Memory)
+│           └── models.py                     # SQLAlchemy models
 │
-└── services/
-    ├── chat/                                 # FastAPI Chat Service (port 8002)
+└── services/                                 # Python FastAPI Backend
+    ├── chat/                                 # Chat Service (port 8002)
     │   ├── main.py                           # FastAPI app with CORS + SSE streaming
-    │   ├── requirements.txt
-    │   ├── .env                              # OPENROUTER_API_KEY (gitignored)
     │   └── core/
-    │       ├── __init__.py
-    │       ├── rtk_engine.py                 # RTK: filler removal, history pruning, prompt rewriting
-    │       ├── smart_route.py                # Smart router: intent classification -> model selection
-    │       ├── provider_service.py           # OpenRouter API: streaming + automatic model fallback
-    │       ├── model_registry.py             # 30+ model catalog with metadata
+    │       ├── rtk_engine.py                 # Prompt compression pipeline
+    │       ├── smart_route.py                # Intent classification -> model selection
+    │       ├── provider_service.py           # OpenRouter streaming + fallback logic
+    │       ├── model_registry.py             # 30+ model catalog metadata
     │       └── model_api.py                  # Model/Provider REST endpoints
     │
     ├── agents/                               # LangGraph Multi-Agent System
-    │   ├── main.py
-    │   ├── graph.py                          # Agent graph (web, file, code, memory tools)
-    │   └── tools/
-    │       └── base.py                       # Hermes tool definitions
-    │
     ├── memory/                               # Memory & Context Management
-    │   └── main.py
-    │
-    └── knowledge/                            # RAG & Document Processing
-        ├── main.py
-        └── worker.py                         # Celery document processor
+    └── knowledge/                            # RAG & Celery Document Processing
 ```
 
 ---
 
-## Key Architecture Decisions
+## How the RTK Engine Works
 
-### Frontend -> Backend Communication
+The RTK Engine compresses prompts before sending them to AI providers. Token savings grow with conversation length:
 
-```
-User types message
-  -> Frontend sends POST to /api/messages/stream (Next.js proxy)
-    -> Backend compresses with RTK Engine (34% avg savings)
-      -> Smart Router classifies intent -> selects free model
-        -> Provider Service calls OpenRouter API with streaming
-          -> SSE events stream back to frontend
-            -> Frontend renders word-by-word in real-time
-```
+- **Turn 1:** ~10% savings (system prompt compression)
+- **Turn 3:** ~7% savings (history pruning kicks in)
+- **Turn 6+:** ~34% savings (full compression pipeline active)
 
-### RTK Engine (Reduction of Tokens Kit)
+---
 
-The RTK Engine compresses prompts before sending to AI providers:
+## Smart Router & Fallback Logic
 
-1. **System Prompt Rewriting** — verbose instructions condensed to concise form
-2. **Filler Removal** — strips "please", "could you", "basically", etc. from long messages
-3. **History Pruning** — older messages get code blocks stripped, long content summarized
-4. **Code Block Compression** — logs get ANSI stripped, timestamps collapsed
-5. **Large Payload Summarization** — JSON/XML >2000 chars summarized
-
-Token savings grow with conversation length:
-- Turn 1: ~10% (system prompt compression)
-- Turn 3: ~7% (history pruning kicks in)
-- Turn 6+: ~34% (full compression pipeline active)
-
-### Smart Router
-
-Classifies user intent via regex heuristics, then selects the optimal free model:
+**Intent Classification:**
 
 | Intent | Model | Why |
-|---|---|---|
+|--------|-------|-----|
 | default | `google/gemma-4-31b-it:free` | Fast, general-purpose |
 | coding | `openai/gpt-oss-120b:free` | Strong code generation |
 | math | `nvidia/nemotron-3-super-120b-a12b:free` | 120B parameter reasoning |
 | creative | `google/gemma-4-31b-it:free` | Natural language generation |
 
-### Automatic Model Fallback
-
-If a model is rate-limited or unavailable, the backend automatically tries the next model in the chain:
-1. Requested model -> 2. Nemotron 3 Super 120B -> 3. GPT-OSS 120B -> 4. Qwen3 80B -> 5. Nemotron Nano 9B
+**Automatic Fallback Chain:**
+If a model is rate-limited, the system automatically tries:
+`Requested Model` -> `Nemotron 3 Super 120B` -> `GPT-OSS 120B` -> `Qwen3 80B` -> `Nemotron Nano 9B`
 
 ---
 
-## Quick Start
+## Getting Started (Local Development)
 
 ### Prerequisites
 - Node.js 18+
@@ -161,56 +133,59 @@ If a model is rate-limited or unavailable, the backend automatically tries the n
 
 ### 1. Install Dependencies
 
+**Frontend:**
 ```bash
-# Frontend
 cd apps/web
 npm install
+```
 
-# Backend
+**Backend:**
+```bash
 cd services/chat
 pip install fastapi uvicorn tiktoken pydantic openai python-dotenv httpx
 ```
 
 ### 2. Configure API Key
-
-Create `services/chat/.env`:
-```
+Create a `.env` file in `services/chat/.env`:
+```env
 OPENROUTER_API_KEY=sk-or-v1-your-key-here
 ```
 
-### 3. Run
+### 3. Run the Platform
 
+**Backend (port 8002):**
 ```bash
-# Backend (port 8002)
 cd services/chat
 python -m uvicorn main:app --port 8002
+```
 
-# Frontend (port 3000)
+**Frontend (port 3000):**
+```bash
 cd apps/web
 npx next dev
 ```
 
-Open http://localhost:3000 and start chatting.
+Visit `http://localhost:3000` and start chatting.
 
 ---
 
-## Pages
+## Application Pages
 
 | Page | Route | Description |
-|---|---|---|
-| **Chat** | `/` | Main AI chat with streaming, model selector, RTK widget |
-| **Models** | Nav tab | Browse 30+ models with search, filter, sort |
-| **API Keys** | Nav tab | Add/manage keys for 15 AI providers |
-| **Local AI** | Nav tab | Download/run local models via Ollama |
-| **Benchmarks** | Nav tab | Side-by-side model comparison |
+|------|-------|-------------|
+| Chat | `/` | Main AI chat with streaming, model selector, RTK widget |
+| Models | Nav tab | Browse 30+ models with search, filter, sort |
+| API Keys | Nav tab | Add/manage keys for 15 AI providers |
+| Local AI | Nav tab | Download/run local models via Ollama |
+| Benchmarks | Nav tab | Side-by-side model comparison |
 
 ---
 
 ## Tech Stack
 
 | Layer | Technology |
-|---|---|
-| Frontend | Next.js 14, React 18, TypeScript, Tailwind CSS, Zustand |
+|-------|------------|
+| Frontend | Next.js 14, React 18, TypeScript, Tailwind CSS, Zustand, Radix UI |
 | Backend | Python 3.13, FastAPI, SSE streaming |
 | AI Provider | OpenRouter API (free models: Gemma, Nemotron, GPT-OSS) |
 | Compression | RTK Engine (custom prompt compression pipeline) |
@@ -218,14 +193,6 @@ Open http://localhost:3000 and start chatting.
 
 ---
 
-## Environment Variables
-
-| Variable | Location | Description |
-|---|---|---|
-| `OPENROUTER_API_KEY` | `services/chat/.env` | Your OpenRouter API key (gitignored) |
-
----
-
 ## License
 
-MIT
+This project is licensed under the MIT License - see the `LICENSE` file for details.
